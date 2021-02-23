@@ -3,7 +3,7 @@ import { IJiraRequest } from 'jira.interface';
 import { PluginSettings } from 'plugin-settings';
 
 
-export const API_SEARCH = '/rest/api/2/search';
+const API_SEARCH = '/rest/api/2/search';
 
 export class AtlassianUtils {
 	public static getBasicAtlassianAuthString(settings: PluginSettings) {

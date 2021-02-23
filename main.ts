@@ -1,5 +1,6 @@
 import { App, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { PluginSettings } from 'plugin-settings';
+import { ObsidianJiraSettingTab } from './settings-tab';
 
 const DEFAULT_SETTINGS: PluginSettings = {
 	jiraCloudUrl: 'atlassian.net',
@@ -22,12 +23,12 @@ export default class ObsidianJira extends Plugin {
 		// this.addStatusBarItem().setText('Status Bar Text');
 
 		this.addCommand({
-			id: 'obsidian-jira-process-file',
-			name: 'Process selection',
+			id: 'obsidian-jira-process-selection',
+			name: 'Convert links in selection',
 			callback: () => this.convertJiraLink()
 		});
 
-		this.addSettingTab(new SettingTab(this.app, this));
+		this.addSettingTab(new ObsidianJiraSettingTab(this.app, this));
 		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
@@ -44,73 +45,44 @@ export default class ObsidianJira extends Plugin {
 	}
 
 	async convertJiraLink(): Promise<void> {
+		const regexLink = /https:\/\/workingmouse\.atlassian\.net\/browse\/([A-Z]+-[0-9]+)/gmi; // TODO: replace with configured URL
+		const regexKey = /([A-Z]+-[0-9]+)/gmi; // TODO: replace with configured URL
+
 		const mdView = this.app.workspace.activeLeaf.view as MarkdownView;
 		const doc = mdView.sourceMode.cmEditor;
-		let selection = doc.getSelection();
-		debugger;
-		console.log(selection);
+		let selections = doc.getSelections();
+
+		// TODO: Ignore if it is already part of a link
+		// TODO: Handle multiple links in one line
+		const mappedSelections = selections.map(selection => {
+			let replacement = "";
+
+			if (this.settings.convertIssueLinks) {
+				let match = regexLink.exec(selection);
+				if (match) {
+					const key = match[1];
+					const transformedLink = `[${key}](${this.settings.jiraCloudUrl}/browse/${key})`;
+					replacement = selection.replace(regexLink, transformedLink);
+				}
+			}
+
+			if (this.settings.convertIssueKeys) {
+				let match = regexKey.exec(selection);
+				console.log(match)
+				if (match) {
+					const key = match[1];
+					const transformedLink = `[${key}](${this.settings.jiraCloudUrl}/browse/${key})`;
+					replacement = selection.replace(regexKey, transformedLink);
+				}
+			}
+
+			return {
+				selection: selection,
+				replacement: replacement
+			};
+		});
+
+		mappedSelections.forEach(mappedSelection => doc.replaceSelection(mappedSelection.replacement));
 	}
 }
 
-
-class SettingTab extends PluginSettingTab {
-	plugin: ObsidianJira;
-
-	constructor(app: App, plugin: ObsidianJira) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		let {containerEl} = this;
-
-		containerEl.empty();
-		containerEl.createEl('h2', {text: 'Configure Obsidian Jira'});
-
-		new Setting(containerEl)
-			.setName('Base URL')
-			.setDesc('The base URL of your Jira site.')
-			.addText(text => text
-				.setPlaceholder('Enter the base URL of your site')
-				.setValue(this.plugin.settings.jiraCloudUrl)
-				.onChange(async (value) => {
-					this.plugin.settings.jiraCloudUrl = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('API token')
-			.setDesc('Your Atlassian API token. You can create one via https://id.atlassian.com/manage/api-tokens')
-			.addText(text => text
-				.setPlaceholder('Enter the base URL of your site')
-				.setValue(this.plugin.settings.jiraToken)
-				.onChange(async (value) => {
-					this.plugin.settings.jiraToken = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Convert issue keys')
-			.setDesc('Convert issue keys into markdown links with the key as the text')
-			.addToggle(toggle => {
-				toggle
-					.setValue(this.plugin.settings.convertIssueKeys)
-					.onChange(async (value) => {
-						this.plugin.settings.convertIssueKeys = value;
-						await this.plugin.saveSettings();
-					})
-			})
-
-		new Setting(containerEl)
-			.setName('Convert issue links')
-			.setDesc('Convert issue keys into markdown links with the key as the text')
-			.addToggle(toggle => {
-				toggle
-					.setValue(this.plugin.settings.convertIssueLinks)
-					.onChange(async (value) => {
-						this.plugin.settings.convertIssueLinks = value;
-						await this.plugin.saveSettings();
-					})
-			})
-	}
-}
