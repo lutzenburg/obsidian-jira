@@ -50,7 +50,25 @@ export default class ObsidianJira extends Plugin {
 
 		const mdView = this.app.workspace.activeLeaf.view as MarkdownView;
 		const doc = mdView.sourceMode.cmEditor;
-		let selections = doc.getSelections();
+		const cursor = doc.getCursor();
+
+
+		// Select the current line if nothing is selected
+		if (!doc.somethingSelected()) {
+			doc.extendSelection(
+				{
+					line: cursor.line,
+					ch: 0
+				},
+				{
+					line: cursor.line,
+					ch: doc.getLine(cursor.line).length
+				}
+			);
+		}
+
+		let selections = doc.getSelections()
+
 
 		// TODO: Ignore if it is already part of a link
 		// TODO: Handle multiple links in one line
