@@ -56,17 +56,19 @@ export default class ObsidianJira extends Plugin {
 		// TODO: Handle multiple links in one line
 		const mappedSelections = selections.map(selection => {
 			let replacement = "";
+			let isLink = false;
 
 			if (this.settings.convertIssueLinks) {
 				let match = regexLink.exec(selection);
 				if (match) {
+					isLink = true;
 					const key = match[1];
 					const transformedLink = `[${key}](${this.settings.jiraCloudUrl}/browse/${key})`;
 					replacement = selection.replace(regexLink, transformedLink);
 				}
 			}
 
-			if (this.settings.convertIssueKeys) {
+			if (this.settings.convertIssueKeys && !isLink) {
 				let match = regexKey.exec(selection);
 				console.log(match)
 				if (match) {
@@ -82,7 +84,7 @@ export default class ObsidianJira extends Plugin {
 			};
 		});
 
-		mappedSelections.forEach(mappedSelection => doc.replaceSelection(mappedSelection.replacement));
+		mappedSelections.forEach(mappedSelection => doc.replaceSelection(mappedSelection.replacement, "start"));
 	}
 }
 
